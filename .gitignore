@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+ENV/
+env/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and test outputs
+*.log
+backend/app/deepseek_logs/
+*.json.bak
+
+# Environment variables (if you add them later)
+.env
+.env.local
+
+# Build outputs
+frontend/dist/
+frontend/.vite/
+
+# Temporary files
+*.tmp
+*.temp
