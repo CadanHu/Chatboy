@@ -20,13 +20,20 @@ DeepSeek 模型接口测试脚本（Phase 3 预备）
 """
 
 import json
+import os
 from pathlib import Path
 
 from openai import OpenAI
 
 
-# 注意：此 API Key 仅用于当前测试阶段，正式环境请改为读取环境变量
-DEEPSEEK_API_KEY = "sk-cc710e55d7354d99971ac42ff57f7dd4"
+# 从环境变量读取 API Key
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    raise ValueError(
+        "请设置环境变量 DEEPSEEK_API_KEY。"
+        "例如：export DEEPSEEK_API_KEY='your-api-key-here'"
+        "或在 .env 文件中设置 DEEPSEEK_API_KEY=your-api-key-here"
+    )
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 

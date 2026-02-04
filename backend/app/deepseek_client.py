@@ -2,15 +2,24 @@
 DeepSeek 客户端封装
 
 统一使用 deepseek-chat 模型，并通过 extra_body 开启思考(thinking)模式。
-后续正式环境请将 API Key 改为从环境变量读取。
+API Key 从环境变量 DEEPSEEK_API_KEY 读取，请在使用前设置。
 """
 
+import os
 from typing import Any, Dict, List, TypedDict
 
 from openai import OpenAI
 
 
-DEEPSEEK_API_KEY = "sk-cc710e55d7354d99971ac42ff57f7dd4"
+# 从环境变量读取 API Key，如果未设置则提示用户
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    raise ValueError(
+        "请设置环境变量 DEEPSEEK_API_KEY。"
+        "例如：export DEEPSEEK_API_KEY='your-api-key-here'"
+        "或在 .env 文件中设置 DEEPSEEK_API_KEY=your-api-key-here"
+    )
+
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 
