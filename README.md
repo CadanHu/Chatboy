@@ -42,7 +42,7 @@ cp .env.example .env
 # 然后编辑 .env 文件，填入你的 DEEPSEEK_API_KEY
 
 # 启动后端服务
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 7090
 ```
 
 ### 2. 前端设置
@@ -57,7 +57,7 @@ npm install
 npx vite
 ```
 
-前端默认运行在 `http://localhost:5173`，会自动代理 `/api` 请求到后端 `http://localhost:8000`。
+前端默认运行在 `http://localhost:7000`，会自动代理 `/api` 请求到后端 `http://localhost:7090`。
 
 ## 功能特性
 

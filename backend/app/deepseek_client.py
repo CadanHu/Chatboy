@@ -1,12 +1,19 @@
 """
 DeepSeek 客户端封装
 
-统一使用 deepseek-chat 模型，并通过 extra_body 开启思考(thinking)模式。
+统一使用 deepseek-chat 模型，并通过 extra_body 开启思考 (thinking) 模式。
 API Key 从环境变量 DEEPSEEK_API_KEY 读取，请在使用前设置。
 """
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List, TypedDict
+
+from dotenv import load_dotenv
+
+# 加载 .env 文件（从当前脚本所在目录的父目录）
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 from openai import OpenAI
 
@@ -35,22 +42,35 @@ def _get_client() -> OpenAI:
 def chat_with_thinking(
     messages: List[ChatMessageDict],
     model: str = "deepseek-chat",
+    enable_thinking: bool = True,
 ) -> Dict[str, Any]:
     """
-    调用 DeepSeek 对话接口（开启思考模式），返回提炼后的结构：
+    调用 DeepSeek 对话接口，返回提炼后的结构：
 
     - answer: 最终回答文本（message.content）
     - reasoning: 思考过程文本（message.reasoning_content）
     - model: 实际返回的模型名称
     - usage: token 用量信息
     - raw: 完整原始响应（用于调试/前端精细控制）
+    
+    Args:
+        messages: 对话消息列表
+        model: 模型名称，默认 deepseek-chat
+        enable_thinking: 是否启用思考模式，默认 True
     """
     client = _get_client()
-    resp = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        extra_body={"thinking": {"type": "enabled"}},
-    )
+    
+    # 构建请求参数
+    create_kwargs = {
+        "model": model,
+        "messages": messages,
+    }
+    
+    # 只在启用思考模式时添加 extra_body
+    if enable_thinking:
+        create_kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+    
+    resp = client.chat.completions.create(**create_kwargs)
     data = resp.model_dump()
 
     choices = data.get("choices") or []
@@ -69,4 +89,3 @@ def chat_with_thinking(
         "usage": data.get("usage"),
         "raw": data,
     }
-
