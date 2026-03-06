@@ -1044,12 +1044,12 @@ watch(
 
 /* ========== Markdown Styles ========== */
 .markdown-body {
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .markdown-body p {
-  margin: 0 0 1em;
+  margin: 0 0 0.8em;
 }
 
 .markdown-body p:last-child {
