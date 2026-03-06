@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-app">
+  <div class="chat-app" :style="{ '--sidebar-width': sidebarWidth + 'px' }">
     <aside class="sidebar">
       <header class="sidebar-header">
         <div class="logo-wrapper">
@@ -55,6 +55,8 @@
         </div>
       </div>
     </aside>
+
+    <div class="sidebar-resizer" @mousedown="startResize"></div>
 
     <main class="chat-main">
       <header class="chat-header">
@@ -215,6 +217,34 @@ marked.setOptions({
 const chat = useChatState()
 const { activeConversation, activeMessages } = chat
 
+// 侧边栏宽度控制
+const sidebarWidth = ref(260)
+const isResizing = ref(false)
+const minSidebarWidth = 200
+const maxSidebarWidth = 450
+
+function startResize(e) {
+  isResizing.value = true
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function handleResize(e) {
+  if (!isResizing.value) return
+  const newWidth = Math.min(Math.max(e.clientX, minSidebarWidth), maxSidebarWidth)
+  sidebarWidth.value = newWidth
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
 // 使用 computed 包裹 marked 渲染
 const renderMarkdown = (text) => {
   if (!text) return ''
@@ -259,13 +289,27 @@ watch(
 
 /* ========== Sidebar ========== */
 .sidebar {
-  width: 280px;
+  width: var(--sidebar-width, 260px);
   border-right: 1px solid #e2e8f0;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   display: flex;
   flex-direction: column;
   padding: 20px 16px;
   box-sizing: border-box;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-resizer {
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-resizer:hover {
+  background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
 }
 
 .sidebar-header {
@@ -718,7 +762,7 @@ watch(
 .message-content {
   display: flex;
   flex-direction: column;
-  max-width: min(680px, 75%);
+  max-width: min(900px, 85%);
   gap: 8px;
 }
 
@@ -731,6 +775,7 @@ watch(
   padding: 14px 18px;
   line-height: 1.6;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  width: 100%;
 }
 
 .message-row.user .bubble {
@@ -1072,6 +1117,8 @@ watch(
   line-height: 1.6;
   background: #1e293b;
   color: #e2e8f0;
+  white-space: pre;
+  word-wrap: normal;
 }
 
 .markdown-body blockquote {
