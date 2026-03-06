@@ -35,6 +35,9 @@ export function useChatState() {
     error: null,
     thinkingEnabled: false,
     loading: true,
+    // 重命名相关
+    editingId: null,
+    editTitle: '',
   })
 
   const activeConversation = computed(() =>
@@ -154,6 +157,53 @@ export function useChatState() {
     state.activeConversationId = id
     setActiveConversationId(id)
     loadConversationMessages(id)
+  }
+
+  // 开始编辑标题
+  function startEdit(id, currentTitle) {
+    state.editingId = id
+    state.editTitle = currentTitle
+  }
+
+  // 保存标题
+  async function saveTitle(id) {
+    const newTitle = state.editTitle.trim()
+    if (!newTitle) {
+      state.error = '标题不能为空'
+      return
+    }
+    if (newTitle.length > 15) {
+      state.error = '标题不能超过 15 个字'
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/conversations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+      if (!res.ok) throw new Error('更新失败')
+
+      // 更新本地状态
+      const conv = state.conversations.find(c => c.id === id)
+      if (conv) {
+        conv.title = newTitle
+      }
+
+      state.editingId = null
+      state.editTitle = ''
+      state.error = null
+    } catch (e) {
+      console.error('更新标题失败:', e)
+      state.error = e?.message || String(e)
+    }
+  }
+
+  // 取消编辑
+  function cancelEdit(id) {
+    state.editingId = null
+    state.editTitle = ''
   }
 
   function toggleReasoning() {
@@ -299,5 +349,8 @@ export function useChatState() {
     toggleReasoning,
     toggleThinking,
     sendMessage,
+    startEdit,
+    saveTitle,
+    cancelEdit,
   }
 }

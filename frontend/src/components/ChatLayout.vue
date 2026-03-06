@@ -43,15 +43,38 @@
               </svg>
             </div>
             <div class="conversation-info">
-              <div class="conversation-title">{{ c.title }}</div>
+              <input
+                v-if="chat.state.editingId === c.id"
+                v-model="chat.state.editTitle"
+                class="conversation-title-input"
+                maxlength="15"
+                @click.stop
+                @keyup.enter="chat.saveTitle(c.id)"
+                @keyup.escape="chat.cancelEdit(c.id)"
+                ref="editInput"
+              />
+              <div v-else class="conversation-title">{{ c.title }}</div>
               <div class="conversation-meta">{{ c.updatedAt }}</div>
             </div>
           </div>
-          <button class="delete-conversation" type="button" @click.stop="chat.deleteConversation(c.id)" title="删除会话">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+          <div class="conversation-actions">
+            <button
+              v-if="chat.state.editingId !== c.id"
+              class="rename-conversation"
+              type="button"
+              @click.stop="chat.startEdit(c.id, c.title)"
+              title="重命名会话"
+            >
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13M18.5 5.5C18.8978 5.10217 19.4374 4.87868 20 4.87868C20.5626 4.87868 21.1022 5.10217 21.5 5.5C21.8978 5.89782 22.1213 6.43739 22.1213 7C22.1213 7.56261 21.8978 8.10217 21.5 8.5L12 18L8 19L9 15L18.5 5.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="delete-conversation" type="button" @click.stop="chat.deleteConversation(c.id)" title="删除会话">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -439,10 +462,6 @@ watch(
   background: #f1f5f9;
 }
 
-.conversation-item:hover .delete-conversation {
-  opacity: 1;
-}
-
 .empty-conversations {
   padding: 20px 12px;
   text-align: center;
@@ -464,7 +483,6 @@ watch(
   transition: all 0.2s ease;
   padding: 0;
   flex-shrink: 0;
-  opacity: 1;
 }
 
 .delete-conversation:hover {
@@ -512,6 +530,59 @@ watch(
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.conversation-title-input {
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 6px;
+  border: 1px solid #6366f1;
+  border-radius: 4px;
+  background: #fff;
+  color: #1e293b;
+  outline: none;
+}
+
+.conversation-item.active .conversation-title-input {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.conversation-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.conversation-item-wrapper:hover .conversation-actions {
+  opacity: 1;
+}
+
+.rename-conversation {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.rename-conversation:hover {
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.rename-conversation svg {
+  width: 14px;
+  height: 14px;
 }
 
 .conversation-meta {
