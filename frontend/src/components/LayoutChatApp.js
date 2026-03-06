@@ -185,6 +185,18 @@ export function useChatState() {
     state.sending = true
     state.error = null
 
+    // 创建临时的 assistant 消息用于流式显示
+    const assistantMessageId = `m${Date.now()}-assistant`
+    const assistantMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: '刚刚',
+      reasoningContent: '',
+      isStreaming: true,
+    }
+    state.messagesByConversation[convId] = [...state.messagesByConversation[convId], assistantMessage]
+
     try {
       // 获取当前会话的所有消息（包括刚发送的）
       const allMessages = state.messagesByConversation[convId]
@@ -194,7 +206,8 @@ export function useChatState() {
           content: m.content,
         }))
 
-      const res = await fetch('/api/chat', {
+      // 使用 SSE 流式请求
+      const res = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -211,19 +224,61 @@ export function useChatState() {
         throw new Error(`请求失败：${res.status} ${textError}`)
       }
 
-      const data = await res.json()
+      // 读取流式响应
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let reasoningText = ''
+      let answerText = ''
 
-      // 移除临时用户消息，重新加载真实消息
-      await loadConversationMessages(convId)
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      // 更新思考过程
-      state.reasoningContent = data.reasoning || ''
-      if (data.reasoning && !state.reasoningVisible) {
-        state.reasoningVisible = true
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // 保留不完整的一行
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.type === 'reasoning') {
+                reasoningText += data.content
+                assistantMessage.reasoningContent = reasoningText
+                // 更新 UI
+                const messages = state.messagesByConversation[convId]
+                const idx = messages.findIndex(m => m.id === assistantMessageId)
+                if (idx !== -1) {
+                  messages[idx] = { ...messages[idx], reasoningContent }
+                  state.messagesByConversation[convId] = [...messages]
+                }
+              } else if (data.type === 'answer') {
+                answerText += data.content
+                // 更新 UI
+                const messages = state.messagesByConversation[convId]
+                const idx = messages.findIndex(m => m.id === assistantMessageId)
+                if (idx !== -1) {
+                  messages[idx] = { ...messages[idx], content: answerText }
+                  state.messagesByConversation[convId] = [...messages]
+                }
+              } else if (data.type === 'done') {
+                // 流式结束，重新加载真实消息
+                await loadConversationMessages(convId)
+                await loadConversations()
+              }
+            } catch (e) {
+              console.error('解析 SSE 数据失败:', e)
+            }
+          }
+        }
       }
 
-      // 更新会话列表（标题可能变化）
-      await loadConversations()
+      // 显示思考过程
+      if (reasoningText && !state.reasoningVisible) {
+        state.reasoningVisible = true
+      }
+      state.reasoningContent = reasoningText
     } catch (e) {
       state.error = e?.message || String(e)
       // 出错时恢复用户消息

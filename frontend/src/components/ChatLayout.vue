@@ -131,8 +131,8 @@
               </span>
             </div>
             <div class="message-content">
-              <div class="bubble">
-                <div class="bubble-content">{{ m.content }}</div>
+              <div class="bubble" :class="m.role">
+                <div class="bubble-content markdown-body" v-html="renderMarkdown(m.content)"></div>
               </div>
               <div class="bubble-meta">{{ m.createdAt }}</div>
             </div>
@@ -195,11 +195,31 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import { useChatState } from './LayoutChatApp'
+import { marked } from 'marked'
+import hljs from 'highlight.js'
+
+// 配置 marked 使用 highlight.js 进行代码高亮
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value
+    }
+    return hljs.highlightAuto(code).value
+  },
+  breaks: true,
+  gfm: true,
+})
 
 const chat = useChatState()
 const { activeConversation, activeMessages } = chat
+
+// 使用 computed 包裹 marked 渲染
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  return marked.parse(text)
+}
 
 const messagesEl = ref(null)
 
@@ -975,5 +995,123 @@ watch(
   .message-content {
     max-width: 85%;
   }
+}
+
+/* ========== Markdown Styles ========== */
+.markdown-body {
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.markdown-body p {
+  margin: 0 0 1em;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.5em 0 0.8em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.markdown-body h1:first-child,
+.markdown-body h2:first-child,
+.markdown-body h3:first-child {
+  margin-top: 0;
+}
+
+.markdown-body h1 { font-size: 1.6em; }
+.markdown-body h2 { font-size: 1.4em; }
+.markdown-body h3 { font-size: 1.2em; }
+.markdown-body h4 { font-size: 1.1em; }
+.markdown-body h5 { font-size: 1em; }
+.markdown-body h6 { font-size: 0.9em; }
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.8em 0;
+  padding-left: 1.8em;
+}
+
+.markdown-body li {
+  margin: 0.4em 0;
+}
+
+.markdown-body code {
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", monospace;
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bubble.assistant .markdown-body code {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.markdown-body pre {
+  margin: 1em 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.markdown-body pre code {
+  display: block;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 0.85em;
+  line-height: 1.6;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.markdown-body blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+  color: #64748b;
+}
+
+.markdown-body a {
+  color: #6366f1;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #e2e8f0;
+  padding: 0.6em 1em;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 1.5em 0;
 }
 </style>

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,7 @@ from .schemas import (
     ChatResponse,
     UsageInfo,
 )
-from .deepseek_client import chat_with_thinking
+from .deepseek_client import chat_with_thinking, chat_with_thinking_stream
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -232,3 +233,101 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
         model=result.get("model"),
         usage=usage_obj,
     )
+
+
+# ========== Streaming Chat API ==========
+@app.post("/api/chat/stream")
+async def chat_stream(payload: ChatRequest, db: Session = Depends(get_db)):
+    """
+    流式聊天接口（SSE）：
+    - conversation_id: 可选，提供则添加到现有会话，否则创建新会话
+    - thinking: 是否启用思考模式
+    """
+    # 获取或创建会话
+    if payload.conversation_id:
+        conversation = (
+            db.query(Conversation)
+            .filter(Conversation.id == payload.conversation_id)
+            .first()
+        )
+        if not conversation:
+            raise HTTPException(status_code=404, detail="会话不存在")
+    else:
+        # 创建新会话，使用第一条消息作为标题
+        first_msg = payload.messages[0].content if payload.messages else "新对话"
+        title = first_msg[:30] + "..." if len(first_msg) > 30 else first_msg
+        conversation = Conversation(
+            title=title,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+
+    # 保存用户消息
+    for msg in payload.messages:
+        if msg.role == "user":
+            db_message = Message(
+                conversation_id=conversation.id,
+                role=msg.role,
+                content=msg.content,
+                thinking_enabled=payload.thinking,
+            )
+            db.add(db_message)
+
+    db.commit()
+
+    # 调用 DeepSeek API 流式接口
+    messages_dict = [m.model_dump() for m in payload.messages]
+
+    async def generate():
+        reasoning_content = ""
+        answer_content = ""
+        model_name = ""
+        usage = None
+
+        # 使用同步生成器包装
+        for chunk in chat_with_thinking_stream(
+            messages_dict,
+            model=payload.model,
+            enable_thinking=payload.thinking,
+        ):
+            # 解析 chunk 数据用于累积
+            try:
+                import json as json_mod
+                if chunk.startswith('data: '):
+                    data = json_mod.loads(chunk[6:])
+                    if data.get('type') == 'reasoning':
+                        reasoning_content += data.get('content', '')
+                    elif data.get('type') == 'answer':
+                        answer_content += data.get('content', '')
+                    elif data.get('type') == 'done':
+                        model_name = data.get('model', '')
+                        usage = data.get('usage')
+            except:
+                pass
+
+            yield chunk
+
+        # 流式输出结束后，保存 AI 回复到数据库
+        if answer_content:
+            assistant_message = Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=answer_content,
+                reasoning_content=reasoning_content or None,
+                model=model_name or payload.model,
+                thinking_enabled=payload.thinking,
+            )
+            db.add(assistant_message)
+
+            # 更新会话标题（如果是第一条消息）
+            if conversation.messages.count() == 0:
+                first_msg = payload.messages[0].content if payload.messages else "新对话"
+                conversation.title = first_msg[:30] + "..." if len(first_msg) > 30 else first_msg
+            conversation.updated_at = datetime.utcnow()
+
+            db.commit()
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
