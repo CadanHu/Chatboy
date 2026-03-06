@@ -46,7 +46,6 @@ async def list_conversations(db: Session = Depends(get_db)):
     """获取会话列表"""
     conversations = (
         db.query(Conversation)
-        .filter(Conversation.is_deleted == False)
         .order_by(Conversation.updated_at.desc())
         .all()
     )
@@ -78,7 +77,7 @@ async def get_conversation(
     """获取单个会话详情（包含消息）"""
     conversation = (
         db.query(Conversation)
-        .filter(Conversation.id == conversation_id, Conversation.is_deleted == False)
+        .filter(Conversation.id == conversation_id)
         .first()
     )
     if not conversation:
@@ -102,17 +101,17 @@ async def delete_conversation(
     conversation_id: int,
     db: Session = Depends(get_db),
 ):
-    """删除会话（软删除）"""
+    """删除会话（物理删除，同时删除相关消息）"""
     conversation = (
         db.query(Conversation)
-        .filter(Conversation.id == conversation_id, Conversation.is_deleted == False)
+        .filter(Conversation.id == conversation_id)
         .first()
     )
     if not conversation:
         raise HTTPException(status_code=404, detail="会话不存在")
 
-    conversation.is_deleted = True
-    conversation.updated_at = datetime.utcnow()
+    # 删除相关消息（cascade 会自动处理）
+    db.delete(conversation)
     db.commit()
     return {"message": "会话已删除"}
 
@@ -126,7 +125,7 @@ async def update_conversation(
     """更新会话标题"""
     conversation = (
         db.query(Conversation)
-        .filter(Conversation.id == conversation_id, Conversation.is_deleted == False)
+        .filter(Conversation.id == conversation_id)
         .first()
     )
     if not conversation:
@@ -153,7 +152,7 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
     if payload.conversation_id:
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == payload.conversation_id, Conversation.is_deleted == False)
+            .filter(Conversation.id == payload.conversation_id)
             .first()
         )
         if not conversation:
@@ -208,7 +207,8 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)):
     db.add(assistant_message)
 
     # 更新会话标题（如果是第一条消息）
-    if len(conversation.messages) == 0:
+    # 使用 count() 而不是 len() 因为 messages 是 lazy="dynamic"
+    if conversation.messages.count() == 0:
         first_msg = payload.messages[0].content if payload.messages else "新对话"
         conversation.title = first_msg[:30] + "..." if len(first_msg) > 30 else first_msg
     conversation.updated_at = datetime.utcnow()

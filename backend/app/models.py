@@ -16,7 +16,6 @@ class Conversation(Base):
     title = Column(String(255), nullable=False, default="新对话")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    is_deleted = Column(Boolean, default=False, nullable=False)
 
     # 关联消息
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", lazy="dynamic")
@@ -39,7 +38,7 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # 关联会话
-    conversation = relationship("Conversation", back_populates="conversation")
+    conversation = relationship("Conversation", back_populates="messages")
 
     def __repr__(self):
         return f"<Message(id={self.id}, role='{self.role}', conversation_id={self.conversation_id})>"
